@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhantomText | Zero-Width Secret Messenger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom UI aesthetics */
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .neon-glow { text-shadow: 0 0 10px rgba(52, 211, 153, 0.5); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        .toast-exit { animation: slideOut 0.3s ease-in forwards; }
+        @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
+
+        /* Hide elements utility */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4 relative overflow-x-hidden">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 flex flex-col gap-3 z-50"></div>
+
+    <!-- Header -->
+    <header class="w-full max-w-5xl mb-8 text-center flex flex-col items-center">
+        <div class="flex items-center gap-3 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/>
+            </svg>
+            <h1 class="text-4xl font-bold tracking-tight text-white neon-glow">Phantom<span class="text-emerald-400">Text</span></h1>
+        </div>
+        <p class="text-slate-400 max-w-xl text-sm">Advanced Zero-Width Steganography. Hide AES-256 encrypted messages within standard visible text. 100% Client-Side. Zero-Knowledge architecture.</p>
+    </header>
+
+    <!-- Main Application Container -->
+    <main class="w-full max-w-5xl glass-panel rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+        
+        <!-- Navigation Tabs -->
+        <div class="w-full md:w-48 bg-slate-800/50 border-b md:border-b-0 md:border-r border-slate-700 flex md:flex-col">
+            <button id="tab-encode" class="flex-1 md:flex-none text-left px-6 py-5 text-emerald-400 border-b-2 md:border-b-0 md:border-r-2 border-emerald-400 bg-slate-800/80 font-medium transition-colors flex items-center gap-2" onclick="switchTab('encode')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="m9 16 3-3-3-3"/><path d="M13 16h2"/></svg>
+                Encode
+            </button>
+            <button id="tab-decode" class="flex-1 md:flex-none text-left px-6 py-5 text-slate-400 border-b-2 md:border-b-0 md:border-r-2 border-transparent hover:text-slate-200 hover:bg-slate-800/40 font-medium transition-colors flex items-center gap-2" onclick="switchTab('decode')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                Decode
+            </button>
+        </div>
+
+        <!-- Dynamic Content Area -->
+        <div class="flex-1 p-6 relative">
+            
+            <!-- ENCODE SECTION -->
+            <div id="view-encode" class="flex flex-col md:flex-row gap-6">
+                <!-- Inputs -->
+                <div class="flex-1 flex flex-col gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Cover Text (Visible camouflage)</label>
+                        <textarea id="cover-text" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none h-24 placeholder-slate-600" placeholder="e.g., The weather is really nice today!"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex justify-between">
+                            <span>Secret Payload (Hidden message)</span>
+                        </label>
+                        <textarea id="secret-message" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none h-32 placeholder-slate-600" placeholder="e.g., The package arrives at midnight."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Encryption Password (Optional, recommended)</label>
+                        <div class="relative">
+                            <input type="password" id="encode-password" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 pr-10 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" placeholder="Leave blank for standard obfuscation">
+                            <button class="absolute right-3 top-3 text-slate-500 hover:text-slate-300" onclick="togglePassword('encode-password')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="btn-encode" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                        Encode & Hide
+                    </button>
+                </div>
+
+                <!-- Output & Analytics -->
+                <div class="flex-1 flex flex-col gap-4">
+                    <div class="flex-1 flex flex-col">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Final Output (Copy this)</label>
+                        <textarea id="encode-output" class="w-full flex-1 bg-slate-900 border border-slate-700 rounded-t-lg p-3 text-sm text-emerald-100 focus:outline-none resize-none cursor-text" readonly placeholder="Your steganographic message will appear here..."></textarea>
+                        <button onclick="copyToClipboard()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 rounded-b-lg border-x border-b border-slate-700 transition-all flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            Copy to Clipboard
+                        </button>
+                    </div>
+
+                    <!-- Analytics Widget -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-lg p-4">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                            Analytics & Compatibility
+                        </h3>
+                        <div class="space-y-2 text-sm text-slate-300">
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Visible Characters:</span>
+                                <span id="stat-visible" class="font-mono text-emerald-400">0</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Zero-Width Bloat:</span>
+                                <span id="stat-zw" class="font-mono text-emerald-400">0 chars</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Platform Compatibility:</span>
+                                <span id="stat-compat" class="font-medium text-emerald-400">Excellent</span>
+                            </div>
+                        </div>
+                        <p id="stat-warning" class="text-xs text-amber-400 mt-2 hidden flex items-start gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            Payload is highly bloated. Platforms with strict hidden byte limits (like Twitter) may strip characters or block posting.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DECODE SECTION -->
+            <div id="view-decode" class="hidden flex flex-col md:flex-row gap-6">
+                <!-- Inputs -->
+                <div class="flex-1 flex flex-col gap-4">
+                    <div class="flex-1 flex flex-col">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Encrypted Text (Paste text here)</label>
+                        <textarea id="decode-input" class="w-full flex-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none placeholder-slate-600" placeholder="Paste the message containing the hidden text here..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Decryption Password (If used during encoding)</label>
+                        <div class="relative">
+                            <input type="password" id="decode-password" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 pr-10 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all" placeholder="Leave blank if standard obfuscation was used">
+                            <button class="absolute right-3 top-3 text-slate-500 hover:text-slate-300" onclick="togglePassword('decode-password')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="btn-decode" class="mt-2 w-full bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg shadow-lg shadow-slate-900/20 transition-all flex items-center justify-center gap-2 border border-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22 22 2"/><path d="M15 15.5c0-1.5.5-2.5 1.5-3.5.5-.5 1.5-1 2-1"/><path d="M12 18.5c-1.5 0-2.5-.5-3.5-1.5-.5-.5-1-1.5-1-2"/><path d="M9 21.5c-1.5 0-2.5-.5-3.5-1.5-.5-.5-1-1.5-1-2"/></svg>
+                        Extract & Decode
+                    </button>
+                </div>
+
+                <!-- Output Area -->
+                <div class="flex-1 flex flex-col">
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                        Revealed Secret Payload
+                        <span id="decode-integrity" class="hidden text-emerald-400 flex items-center gap-1 text-[10px] bg-emerald-900/30 px-2 py-0.5 rounded-full border border-emerald-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                            SHA-256 Verified
+                        </span>
+                    </label>
+                    <textarea id="decode-output" class="w-full flex-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-400 focus:outline-none resize-none cursor-text font-mono" readonly placeholder="Waiting for extraction..."></textarea>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer Security Notice -->
+    <p class="text-xs text-slate-500 mt-6 flex items-center gap-2 max-w-2xl text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Data never leaves your device. Auto-wiping memory variables after 3 minutes of inactivity.
+    </p>
+
+    <script>
+        /**
+         * PhantomText Core Implementation
+         * Covers: Zero-Width Steganography, Web Crypto API (AES-GCM), CompressionStream (Deflate), and SHA-256 Integrity.
+         */
+
+        "use strict";
+
+        // --- CONSTANTS ---
+        const ZW_0 = '\u200B';      // Zero-Width Space
+        const ZW_1 = '\u200C';      // Zero-Width Non-Joiner
+        const ZW_DELIM = '\u200D';  // Zero-Width Joiner (Start/End Boundary)
+        const DEFAULT_KEY = "phantom_standard_obfuscation_key_v1";
+
+        // --- UI & STATE MANAGEMENT ---
+        function switchTab(tab) {
+            const encTab = document.getElementById('tab-encode');
+            const decTab = document.getElementById('tab-decode');
+            const encView = document.getElementById('view-encode');
+            const decView = document.getElementById('view-decode');
+
+            if (tab === 'encode') {
+                encTab.className = "flex-1 md:flex-none text-left px-6 py-5 text-emerald-400 border-b-2 md:border-b-0 md:border-r-2 border-emerald-400 bg-slate-800/80 font-medium transition-colors flex items-center gap-2";
+                decTab.className = "flex-1 md:flex-none text-left px-6 py-5 text-slate-400 border-b-2 md:border-b-0 md:border-r-2 border-transparent hover:text-slate-200 hover:bg-slate-800/40 font-medium transition-colors flex items-center gap-2";
+                encView.classList.remove('hidden');
+                decView.classList.add('hidden');
+            } else {
+                decTab.className = "flex-1 md:flex-none text-left px-6 py-5 text-emerald-400 border-b-2 md:border-b-0 md:border-r-2 border-emerald-400 bg-slate-800/80 font-medium transition-colors flex items-center gap-2";
+                encTab.className = "flex-1 md:flex-none text-left px-6 py-5 text-slate-400 border-b-2 md:border-b-0 md:border-r-2 border-transparent hover:text-slate-200 hover:bg-slate-800/40 font-medium transition-colors flex items-center gap-2";
+                decView.classList.remove('hidden');
+                encView.classList.add('hidden');
+            }
+        }
+
+        function togglePassword(id) {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-emerald-900/90 border-emerald-600 text-emerald-100',
+                error: 'bg-red-900/90 border-red-600 text-red-100',
+                info: 'bg-slate-800/90 border-slate-600 text-slate-200'
+            };
+
+            toast.className = `toast-enter flex items-center gap-2 border px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm text-sm font-medium ${colors[type]}`;
+            toast.innerHTML = type === 'success' 
+                ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> ${message}`
+                : type === 'error'
+                ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg> ${message}`
+                : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> ${message}`;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.replace('toast-enter', 'toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // --- INACTIVITY SAFETY PROTOCOL ---
+        let inactivityTimer;
+        function resetTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                document.getElementById('secret-message').value = '';
+                document.getElementById('encode-password').value = '';
+                document.getElementById('decode-password').value = '';
+                document.getElementById('decode-output').value = '';
+                document.getElementById('decode-integrity').classList.add('hidden');
+                showToast('Security clearance: Sensitive fields wiped due to inactivity.', 'info');
+            }, 3 * 60 * 1000); // 3 minutes
+        }
+        ['mousemove', 'keypress', 'touchstart', 'scroll'].forEach(e => document.addEventListener(e, resetTimer));
+        resetTimer();
+
+        // --- LZW FALLBACK COMPRESSION ---
+        // Used if CompressionStream (Deflate) is not supported in the user's browser.
+        function lzwEncode(bytes) {
+            const dict = new Map();
+            for (let i = 0; i < 256; i++) dict.set(String.fromCharCode(i), i);
+            let dictSize = 256;
+            let w = "";
+            const result = [];
+            for (let i = 0; i < bytes.length; i++) {
+                const c = String.fromCharCode(bytes[i]);
+                const wc = w + c;
+                if (dict.has(wc)) w = wc;
+                else {
+                    result.push(dict.get(w));
+                    if (dictSize < 65536) dict.set(wc, dictSize++);
+                    w = c;
+                }
+            }
+            if (w !== "") result.push(dict.get(w));
+            
+            const out = new Uint8Array(result.length * 2);
+            for (let i = 0; i < result.length; i++) {
+                out[i * 2] = result[i] >> 8;
+                out[i * 2 + 1] = result[i] & 255;
+            }
+            return out;
+        }
+
+        function lzwDecode(bytes) {
+            if (bytes.length === 0) return new Uint8Array(0);
+            const dict = new Map();
+            for (let i = 0; i < 256; i++) dict.set(i, String.fromCharCode(i));
+            let dictSize = 256;
+            const input = [];
+            for (let i = 0; i < bytes.length; i += 2) {
+                input.push((bytes[i] << 8) | bytes[i + 1]);
+            }
+            let w = String.fromCharCode(input[0]);
+            const result = [input[0]];
+            for (let i = 1; i < input.length; i++) {
+                const k = input[i];
+                let entry = "";
+                if (dict.has(k)) {
+                    entry = dict.get(k);
+                } else if (k === dictSize) {
+                    entry = w + w.charAt(0);
+                } else {
+                    throw new Error("LZW Decode Error");
+                }
+                for(let j=0; j<entry.length; j++) result.push(entry.charCodeAt(j));
+                if (dictSize < 65536) dict.set(dictSize++, w + entry.charAt(0));
+                w = entry;
+            }
+            return new Uint8Array(result);
+        }
+
+        // --- CORE ENGINES ---
+        const Engine = {
+            async compress(uint8Array) {
+                try {
+                    if (typeof CompressionStream !== 'undefined') {
+                        const cs = new CompressionStream('deflate-raw');
+                        const writer = cs.writable.getWriter();
+                        writer.write(uint8Array);
+                        writer.close();
+                        const buf = await new Response(cs.readable).arrayBuffer();
+                        const out = new Uint8Array(buf.byteLength + 1);
+                        out[0] = 1; // Magic Byte: 1 = Deflate
+                        out.set(new Uint8Array(buf), 1);
+                        return out;
+                    }
+                } catch(e) { console.warn("CompressionStream failed, falling back to LZW.", e); }
+                
+                // Fallback to LZW
+                const comp = lzwEncode(uint8Array);
+                const out = new Uint8Array(comp.length + 1);
+                out[0] = 2; // Magic Byte: 2 = LZW
+                out.set(comp, 1);
+                return out;
+            },
+
+            async decompress(uint8Array) {
+                const type = uint8Array[0];
+                const data = uint8Array.slice(1);
+                
+                if (type === 1) {
+                    const ds = new DecompressionStream('deflate-raw');
+                    const writer = ds.writable.getWriter();
+                    writer.write(data);
+                    writer.close();
+                    return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+                } else if (type === 2) {
+                    return lzwDecode(data);
+                }
+                throw new Error("Unknown compression format detected.");
+            },
+
+            async getCryptoKey(password, salt) {
+                const enc = new TextEncoder();
+                const keyMaterial = await crypto.subtle.importKey(
+                    "raw", enc.encode(password || DEFAULT_KEY), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]
+                );
+                return crypto.subtle.deriveKey(
+                    { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+                    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+                );
+            },
+
+            async encrypt(dataUint8Array, password) {
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const key = await this.getCryptoKey(password, salt);
+
+                const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, dataUint8Array);
+                
+                // Pack architecture: [Salt (16)] + [IV (12)] + [Ciphertext]
+                const encryptedBytes = new Uint8Array(16 + 12 + ciphertext.byteLength);
+                encryptedBytes.set(salt, 0);
+                encryptedBytes.set(iv, 16);
+                encryptedBytes.set(new Uint8Array(ciphertext), 28);
+                return encryptedBytes;
+            },
+
+            async decrypt(encryptedBytes, password) {
+                if (encryptedBytes.byteLength < 28) throw new Error("Payload too short to be valid.");
+                
+                const salt = encryptedBytes.slice(0, 16);
+                const iv = encryptedBytes.slice(16, 28);
+                const ciphertext = encryptedBytes.slice(28);
+
+                const key = await this.getCryptoKey(password, salt);
+                try {
+                    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
+                    return new Uint8Array(decrypted);
+                } catch (e) {
+                    throw new Error("Decryption failed. Incorrect password or data tampering detected.");
+                }
+            },
+
+            bytesToZeroWidth(bytes) {
+                let zwStr = ZW_DELIM;
+                for (let i = 0; i < bytes.length; i++) {
+                    let bin = bytes[i].toString(2).padStart(8, '0');
+                    for (let j = 0; j < 8; j++) {
+                        zwStr += bin[j] === '0' ? ZW_0 : ZW_1;
+                    }
+                }
+                zwStr += ZW_DELIM;
+                return zwStr;
+            },
+
+            zeroWidthToBytes(text) {
+                // Safely extract boundaries, preventing catastrophic backtracking
+                const regex = new RegExp(`${ZW_DELIM}([${ZW_0}${ZW_1}]+)${ZW_DELIM}`);
+                const match = text.match(regex);
+                if (!match) throw new Error("No hidden PhantomText message found in the provided text.");
+
+                const bits = match[1];
+                if (bits.length % 8 !== 0) throw new Error("Corrupted zero-width payload (bit length mismatch).");
+
+                const bytes = new Uint8Array(bits.length / 8);
+                for (let i = 0; i < bytes.length; i++) {
+                    let byteStr = "";
+                    for (let j = 0; j < 8; j++) {
+                        byteStr += bits[i * 8 + j] === ZW_0 ? '0' : '1';
+                    }
+                    bytes[i] = parseInt(byteStr, 2);
+                }
+                return bytes;
+            },
+
+            injectZW(coverText, zwStr) {
+                // Inject after the first word to protect against naive trim/strip functions on platforms.
+                const spaceIdx = coverText.indexOf(' ');
+                if (spaceIdx === -1 || coverText.length === 0) return coverText + zwStr;
+                return coverText.slice(0, spaceIdx + 1) + zwStr + coverText.slice(spaceIdx + 1);
+            },
+
+            buffersEqual(buf1, buf2) {
+                if (buf1.byteLength !== buf2.byteLength) return false;
+                const dv1 = new Int8Array(buf1);
+                const dv2 = new Int8Array(buf2);
+                for (let i = 0; i !== buf1.byteLength; i++) {
+                    if (dv1[i] !== dv2[i]) return false;
+                }
+                return true;
+            }
+        };
+
+        // --- EVENT HANDLERS ---
+        document.getElementById('btn-encode').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-encode');
+            const originalBtnHtml = btn.innerHTML;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...`;
+            btn.disabled = true;
+
+            try {
+                const cover = document.getElementById('cover-text').value;
+                const secret = document.getElementById('secret-message').value;
+                const pass = document.getElementById('encode-password').value;
+
+                if (!secret) throw new Error("Secret Payload cannot be empty.");
+
+                // 1. Convert to Bytes & Hash for Tamper Detection
+                const secretBytes = new TextEncoder().encode(secret);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', secretBytes);
+                
+                const payloadBytes = new Uint8Array(32 + secretBytes.length);
+                payloadBytes.set(new Uint8Array(hashBuffer), 0);
+                payloadBytes.set(secretBytes, 32);
+
+                // 2. Compress -> Encrypt -> Encode to ZW
+                const compressed = await Engine.compress(payloadBytes);
+                const encrypted = await Engine.encrypt(compressed, pass);
+                const zwString = Engine.bytesToZeroWidth(encrypted);
+
+                // 3. Inject
+                const finalText = Engine.injectZW(cover || " ", zwString);
+                
+                document.getElementById('encode-output').value = finalText;
+                updateAnalytics(cover.length, zwString.length);
+                showToast('Message encoded and hidden successfully!', 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+            }
+        });
+
+        document.getElementById('btn-decode').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-decode');
+            const originalBtnHtml = btn.innerHTML;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Extracting...`;
+            btn.disabled = true;
+            document.getElementById('decode-integrity').classList.add('hidden');
+
+            try {
+                const input = document.getElementById('decode-input').value;
+                const pass = document.getElementById('decode-password').value;
+
+                // 1. Extract & Decrypt
+                const encryptedBytes = Engine.zeroWidthToBytes(input);
+                const compressedBytes = await Engine.decrypt(encryptedBytes, pass);
+                
+                // 2. Decompress
+                const payloadBytes = await Engine.decompress(compressedBytes);
+
+                // 3. Tamper Verification
+                if (payloadBytes.byteLength < 32) throw new Error("Payload structure corrupted.");
+                const originalHash = payloadBytes.slice(0, 32);
+                const secretBytes = payloadBytes.slice(32);
+                
+                const verifyHash = new Uint8Array(await crypto.subtle.digest('SHA-256', secretBytes));
+                
+                if (!Engine.buffersEqual(originalHash, verifyHash)) {
+                    throw new Error("Tamper Detection Alert: Checksum mismatch. The hidden data was modified.");
+                }
+
+                document.getElementById('decode-output').value = new TextDecoder().decode(secretBytes);
+                document.getElementById('decode-integrity').classList.remove('hidden');
+                showToast('Payload decoded and verified successfully!', 'success');
+                
+            } catch (err) {
+                document.getElementById('decode-output').value = '';
+                showToast(err.message, 'error');
+            } finally {
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+            }
+        });
+
+        function copyToClipboard() {
+            const output = document.getElementById('encode-output');
+            if (!output.value) return;
+            
+            output.select();
+            output.setSelectionRange(0, 999999); // Mobile safely
+            
+            try {
+                document.execCommand('copy');
+                showToast('Securely copied to clipboard!', 'success');
+                
+                // Clear fields post-copy as requested
+                document.getElementById('secret-message').value = '';
+                document.getElementById('encode-password').value = '';
+            } catch (err) {
+                showToast('Clipboard copy failed. Please select text manually.', 'error');
+            }
+        }
+
+        // --- ANALYTICS BINDINGS ---
+        function updateAnalytics(visLen, zwLen) {
+            document.getElementById('stat-visible').innerText = visLen;
+            document.getElementById('stat-zw').innerText = `${zwLen} chars`;
+            
+            const compatEl = document.getElementById('stat-compat');
+            const warningEl = document.getElementById('stat-warning');
+            
+            if (zwLen > 4000) {
+                compatEl.innerText = "Poor";
+                compatEl.className = "font-medium text-red-400";
+                warningEl.classList.remove('hidden');
+            } else if (zwLen > 1500) {
+                compatEl.innerText = "Moderate";
+                compatEl.className = "font-medium text-amber-400";
+                warningEl.classList.remove('hidden');
+            } else {
+                compatEl.innerText = "Excellent";
+                compatEl.className = "font-medium text-emerald-400";
+                warningEl.classList.add('hidden');
+            }
+        }
+        
+        document.getElementById('cover-text').addEventListener('input', () => {
+            const out = document.getElementById('encode-output').value;
+            if(out) {
+               // Soft update, wait for actual encode for ZW
+               document.getElementById('stat-visible').innerText = document.getElementById('cover-text').value.length;
+            }
+        });
+
+    </script>
+</body>
+</html>
