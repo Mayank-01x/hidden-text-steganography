@@ -35,7 +35,16 @@
 - 📊 **Real-Time Analytics:** Tracks zero-width character bloat and assesses platform compatibility dynamically.
 - ⚡ **100% Client-Side:** No data leaves the browser.
 
----
+
+## ⚠️ Limitations
+
+- Some platforms (e.g., social media, messaging apps) may strip zero-width Unicode characters, causing hidden data loss.
+- Copy-paste operations can remove or normalize invisible characters depending on the environment.
+- Not designed for high-security or production-grade use; intended as a proof-of-concept.
+- Large messages increase zero-width character bloat and may affect usability.
+- Requires modern browser support for Web Crypto API and CompressionStream.
+- Encrypted data cannot be recovered if the password is lost.
+
 
 ## ⚙️ How It Works
 
@@ -52,7 +61,6 @@
 3. Data is decompressed and integrity is verified against the original SHA-256 hash.
 4. The original message is securely revealed.
 
----
 
 ## 🚀 Quick Start (Zero Installation)
 
@@ -62,7 +70,6 @@ PhantomText requires no Node.js, package managers, or server setup.
 2. Simply open `index.html` in any modern web browser.
 3. Start encoding and decoding!
 
----
 
 ## 🧠 Core Technologies
 
@@ -71,7 +78,6 @@ PhantomText requires no Node.js, package managers, or server setup.
 - **Data Handling:** CompressionStream API, Custom LZW implementation
 - **Steganography:** Unicode Zero-Width Characters
 
----
 
 ## 📁 Project Structure
 
@@ -81,7 +87,7 @@ PhantomText requires no Node.js, package managers, or server setup.
 ├── README.md    # Documentation
 ├── LICENSE      # MIT License
 ```
----
+
 
 ## 👨‍💻 Author
 
